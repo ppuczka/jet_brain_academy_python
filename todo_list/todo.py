@@ -1,16 +1,11 @@
-# from sql_alchemy_db import Table, Session
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
-from datetime import datetime
-
-from sqlalchemy.orm import sessionmaker
 from sqlalchemy import Column, Integer, String, Date
+from datetime import datetime, timedelta
+from sqlalchemy.orm import sessionmaker
 
 engine = create_engine('sqlite:///todo.db?check_same_thread=False')
-
 Base = declarative_base()
-
-Session = sessionmaker(bind=engine)
 
 
 class Table(Base):
@@ -28,48 +23,91 @@ class Table(Base):
 
 
 Table.create_table()
+Session = sessionmaker(bind=engine)
 session = Session()
 
-# task_list = ['Do yoga', 'Make breakfast', 'Learn basics of SQL', 'Learn what is ORM']
-# counter = 1
-# print('Today:')
-# for task in task_list:
-#     print(f'{counter}) {task}')
-#     counter += 1
+user_date_format = '%Y-%m-%d'
+date_format = '%A %d %b'
+day_month_date_format = '%d %b'
+
+today_date = datetime.today()
+formatted_today_day_month_date = today_date.__format__(day_month_date_format)
+formatted_today_date = today_date.__format__(date_format)
 
 
-def add_new_task(task_name):
-    new_row = Table(task=task_name)
+def main_menu():
+    menu = ["Today's tasks", "Week's tasks", 'All tasks', 'Add task', 'Exit']
+    counter_ = 1
+    for position in menu:
+        if position == 'Exit':
+            print(f'0) {position}')
+        else:
+            print(f'{counter_}) {position}')
+        counter_ += 1
+
+
+def query_daily_task(formatted_date):
+    return session.query(Table).filter(Table.deadline == formatted_date).all()
+
+
+def add_new_task(task_name, date):
+    deadline_date_format = datetime.strptime(date, user_date_format)
+    print(deadline_date_format)
+    new_row = Table(task=task_name, deadline=deadline_date_format)
     session.add(new_row)
     session.commit()
     print('The task have been added!')
 
 
-main_menu = ["Today's tasks", 'Add task', 'Exit']
-counter = 1
+def weekly_tasks_overview():
+    for j in range(7):
+        deadline = today_date + timedelta(days=j)
+        rows = session.query(Table).filter(Table.deadline == deadline.date()).all()
+        count = 1
+        print(datetime.strftime(deadline, '%A %d %b:'))
+        if len(rows) <= 0:
+            print("Nothing to do!")
+        for i in range(len(rows)):
+            print(str(count) + '. ' + rows[i].task)
+            count += 1
+        print()
 
-for position in main_menu:
-    if position == 'Exit':
-        print(f'0) {position}')
+
+def print_all_tasks():
+    counter_ = 1
+    all_tasks = session.query(Table).all()
+    if len(all_tasks) == 0:
+        print('Nothing to do!')
     else:
-        print(f'{counter}) {position}')
-    counter += 1
+        for task_ in all_tasks:
+            print(f'{counter_}. {task_}')
+            counter_ += 1
 
+
+def print_today_tasks():
+    print(f'Today {formatted_today_day_month_date}:')
+    print_all_tasks()
+
+
+main_menu()
 user_input = ''
+
 while True:
     user_input = input()
     if user_input == '1':
-        to_do_list = session.query(Table).all()
-        print('Today:')
-        if len(to_do_list) == 0:
-            print('Nothing to do!')
-        else:
-            for task in to_do_list:
-                print(task)
+        print_today_tasks()
+        main_menu()
     elif user_input == '2':
-        task = input('Enter task:\n')
-        add_new_task(task)
+        weekly_tasks_overview()
+        main_menu()
+    elif user_input == '3':
+        print_all_tasks()
+        main_menu()
+    elif user_input == '4':
+        task = input('Enter task: ')
+        deadline = input('Enter date in yyyy-MM-dd format: ')
+        add_new_task(task, deadline)
+        main_menu()
     elif user_input == '0':
         print('Bye')
         break
-
